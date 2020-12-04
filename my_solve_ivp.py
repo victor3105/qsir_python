@@ -2,13 +2,9 @@ import inspect
 import numpy as np
 from scipy.integrate._ivp import *
 from scipy.optimize import OptimizeResult
-# from .bdf import BDF
-# from .radau import Radau
-# from .rk import RK23, RK45, DOP853
-# from .lsoda import LSODA
-#
-# from .common import EPS, OdeSolution
-# from .base import OdeSolver
+from keras.models import Sequential
+from keras.layers import Dense
+from arizona_data import INFECTED, RECOVERED, DEAD, ALPHA, BETA, GAMMA
 
 
 METHODS = {'RK23': RK23,
