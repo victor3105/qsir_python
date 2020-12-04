@@ -6,7 +6,6 @@ from keras.models import Sequential
 from keras.layers import Dense
 from arizona_data import INFECTED, RECOVERED, DEAD, ALPHA, BETA, GAMMA
 
-
 METHODS = {'RK23': RK23,
            'RK45': RK45,
            'DOP853': DOP853,
@@ -17,6 +16,20 @@ METHODS = {'RK23': RK23,
 
 MESSAGES = {0: "The solver successfully reached the end of the integration interval.",
             1: "A termination event occurred."}
+
+# Neural network for quarantine function
+model = Sequential()
+model.add(Dense(10, input_dim=3, activation='relu'))
+model.add(Dense(1))
+predicted = []
+
+
+def my_loss(y_true, y_pred):
+    loss = np.sum((np.log(INFECTED) - np.log(predicted[2][:] + predicted[4][:]))**2)
+    loss += np.sum((np.log(RECOVERED + DEAD) - np.log(predicted[3][:]))**2)
+    return loss
+
+model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
 class OdeResult(OptimizeResult):
