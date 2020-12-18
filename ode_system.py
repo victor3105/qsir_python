@@ -22,10 +22,26 @@ def my_loss(y_true, y_pred):
     pred = K.constant(predicted)
     loss = K.sum((K.log(infected) - K.log(pred[1][:] + pred[3][:]))**2)
     loss += K.sum((K.log(recovered + dead) - K.log(pred[2][:]))**2)
+    print(loss)
     return loss
 
 
 model.compile(loss=my_loss, optimizer='adam', metrics=['accuracy'])
+
+
+def train_ode(model, epochs, fun, t_span, y0, method='RK45', t_eval=None, dense_output=False,
+              events=None, vectorized=False, args=None, **options):
+    for i in range(epochs):
+        sol = solve_ivp(fun, t_span, y0, method, t_eval, dense_output,
+                        events, vectorized, args, **options)
+        predicted[0][:] = sol.y[0]
+        predicted[1][:] = sol.y[1]
+        predicted[2][:] = sol.y[2]
+        predicted[3][:] = sol.y[3]
+        model.fit(np.array([[S0, I0, R0]]), np.array([1]), epochs=1)
+        print(f'Epoch {i} out of {epochs}')
+        print(model.get_weights())
+        print()
 
 
 N0 = 7300000.0
@@ -48,11 +64,14 @@ def dxdt_new(t, x, *args):
     Q = quarantine - recoveredQ
     return [S, I, R, Q]
 
+
 S0 = N0
 I0 = 652
 R0 = 13
 Q0 = 0
 x0 = S0, I0, R0, Q0
+
+train_ode(model, 100, fun=dxdt_new, t_span=(0, 66.0), y0=[S0, I0, R0, Q0], method='RK45', args=(N0, beta, gamma, delta), t_eval=t)
 
 sol = solve_ivp(dxdt_new, (0, 66.0), [S0, I0, R0, Q0], method='RK45', args=(N0, beta, gamma, delta), t_eval=t)
 # print(sol)
