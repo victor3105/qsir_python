@@ -4,7 +4,6 @@ from scipy.integrate._ivp import *
 from scipy.optimize import OptimizeResult
 from keras.models import Sequential
 from keras.layers import Dense
-from arizona_data import INFECTED, RECOVERED, DEAD, ALPHA, BETA, GAMMA
 
 METHODS = {'RK23': RK23,
            'RK45': RK45,
@@ -16,20 +15,6 @@ METHODS = {'RK23': RK23,
 
 MESSAGES = {0: "The solver successfully reached the end of the integration interval.",
             1: "A termination event occurred."}
-
-# Neural network for quarantine function
-model = Sequential()
-model.add(Dense(10, input_dim=3, activation='relu'))
-model.add(Dense(1))
-predicted = []
-
-
-def my_loss(y_true, y_pred):
-    loss = np.sum((np.log(INFECTED) - np.log(predicted[2][:] + predicted[4][:]))**2)
-    loss += np.sum((np.log(RECOVERED + DEAD) - np.log(predicted[3][:]))**2)
-    return loss
-
-model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 
 class OdeResult(OptimizeResult):
@@ -648,6 +633,8 @@ def solve_ivp(fun, t_span, y0, method='RK45', t_eval=None, dense_output=False,
         if t_eval is not None and dense_output:
             ti.append(t)
 
+        # print(np.hstack(ys))
+
     message = MESSAGES.get(status, message)
 
     if t_events is not None:
@@ -672,3 +659,10 @@ def solve_ivp(fun, t_span, y0, method='RK45', t_eval=None, dense_output=False,
     return OdeResult(t=ts, y=ys, sol=sol, t_events=t_events, y_events=y_events,
                      nfev=solver.nfev, njev=solver.njev, nlu=solver.nlu,
                      status=status, message=message, success=status >= 0)
+
+
+def train_ode(epochs, fun, t_span, y0, method='RK45', t_eval=None, dense_output=False,
+              events=None, vectorized=False, args=None, **options):
+   solve_ivp(fun, t_span, y0, method, t_eval, dense_output,
+             events, vectorized, args, **options)
+

@@ -1,32 +1,68 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from my_solve_ivp import solve_ivp
+from keras.models import Sequential
+from keras.layers import Dense
+from keras import backend as K
+
+from arizona_data import INFECTED, RECOVERED, DEAD, ALPHA, BETA, GAMMA
+
+
+# Neural network for quarantine function
+model = Sequential()
+model.add(Dense(10, input_dim=3, activation='relu'))
+model.add(Dense(1))
+predicted = np.ones((4, 66))
+
+
+def my_loss(y_true, y_pred):
+    infected = K.constant(INFECTED)
+    recovered = K.constant(RECOVERED)
+    dead = K.constant(DEAD)
+    pred = K.constant(predicted)
+    loss = K.sum((K.log(infected) - K.log(pred[1][:] + pred[3][:]))**2)
+    loss += K.sum((K.log(recovered + dead) - K.log(pred[2][:]))**2)
+    return loss
+
+
+model.compile(loss=my_loss, optimizer='adam', metrics=['accuracy'])
+
 
 N0 = 7300000.0
 beta = 0.15
 gamma = 0.013
+delta = 0.01
 
 t = np.linspace(0, 66, 66)
 
 
 def dxdt_new(t, x, *args):
-    N, beta, gamma = args
-    S = -beta * x[0] * x[1] / N
-    I = beta * x[0] * x[1] / N - gamma * x[1]
-    R = gamma * x[1]
-    return [S, I, R]
+    N, beta, gamma, delta = args
+    deltaInfected = beta * x[0] * x[1] / N
+    quarantine = model.predict(np.expand_dims(x[:3], axis=0)) / N
+    recoveredQ = delta * x[3]
+    recoveredNoQ = gamma * x[1]
+    S = -deltaInfected
+    I = deltaInfected - recoveredNoQ - quarantine
+    R = recoveredNoQ + recoveredQ
+    Q = quarantine - recoveredQ
+    return [S, I, R, Q]
 
 S0 = N0
 I0 = 652
 R0 = 13
-x0 = S0, I0, R0
+Q0 = 0
+x0 = S0, I0, R0, Q0
 
-sol = solve_ivp(dxdt_new, (0, 66.0), [S0, I0, R0], method='RK45', args=(N0, beta, gamma), t_eval=t)
-print(sol)
+sol = solve_ivp(dxdt_new, (0, 66.0), [S0, I0, R0, Q0], method='RK45', args=(N0, beta, gamma, delta), t_eval=t)
+# print(sol)
+# predicted[1][:] = sol.y[1]
+# predicted[2][:] = sol.y[2]
 
 plt.plot(t, sol.y[0], 'r', label='S')
 plt.plot(t, sol.y[1], 'g', label='I')
 plt.plot(t, sol.y[2], 'b', label='R')
+plt.plot(t, sol.y[3], 'k', label='Q')
 plt.legend(loc='best')
 plt.grid()
 plt.show()
