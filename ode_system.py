@@ -1,12 +1,13 @@
+import pygad
+import pygad.kerasga
+
 import numpy as np
 import matplotlib.pyplot as plt
 from my_solve_ivp import solve_ivp
 from keras.models import Sequential
 from keras.layers import Dense
-from keras import backend as K
 
 from arizona_data import INFECTED, RECOVERED, DEAD, ALPHA, BETA, GAMMA
-
 
 # Neural network for quarantine function
 model = Sequential()
@@ -16,17 +17,33 @@ predicted = np.ones((4, 66))
 
 
 def my_loss(y_true, y_pred):
-    infected = K.constant(INFECTED)
-    recovered = K.constant(RECOVERED)
-    dead = K.constant(DEAD)
-    pred = K.constant(predicted)
-    loss = K.sum((K.log(infected) - K.log(pred[1][:] + pred[3][:]))**2)
-    loss += K.sum((K.log(recovered + dead) - K.log(pred[2][:]))**2)
-    print(loss)
+    infected = INFECTED
+    recovered = RECOVERED
+    dead = DEAD
+    pred = predicted
+    loss = np.sum((np.log(infected) - np.log(pred[1][:] + pred[3][:]))**2)
+    loss += np.sum((np.log(recovered + dead) - np.log(pred[2][:]))**2)
     return loss
 
 
-model.compile(loss=my_loss, optimizer='adam', metrics=['accuracy'])
+def fitness_func(solution, sol_idx):
+    model_weights_matrix = pygad.kerasga.model_weights_as_matrix(model=model,
+                                                                 weights_vector=solution)
+    model.set_weights(weights=model_weights_matrix)
+
+    t = np.linspace(0, 66, 66)
+    sol = solve_ivp(dxdt_new, (0, 66.0), [S0, I0, R0, Q0], method='RK45', args=(N0, beta, gamma, delta), t_eval=t)
+    predicted[0][:] = sol.y[0]
+    predicted[1][:] = sol.y[1]
+    predicted[2][:] = sol.y[2]
+    predicted[3][:] = sol.y[3]
+    loss = my_loss(1, 1)
+    solution_fitness = 1.0 / loss
+
+    return solution_fitness
+
+# model.compile(loss=my_loss, optimizer='adam', metrics=['accuracy'])
+# model.compile(loss='mean_squared_error', optimizer='adam', metrics=['accuracy'])
 
 
 def train_ode(model, epochs, fun, t_span, y0, method='RK45', t_eval=None, dense_output=False,
@@ -38,18 +55,17 @@ def train_ode(model, epochs, fun, t_span, y0, method='RK45', t_eval=None, dense_
         predicted[1][:] = sol.y[1]
         predicted[2][:] = sol.y[2]
         predicted[3][:] = sol.y[3]
-        model.fit(np.array([[S0, I0, R0]]), np.array([1]), epochs=1)
-        print(f'Epoch {i} out of {epochs}')
-        print(model.get_weights())
-        print()
+        # model.fit(np.array([[S0, I0, R0]]), np.array([1]), epochs=1)
+        # print(f'Epoch {i + 1} out of {epochs}')
+        # print(model.get_weights())
+        # print()
 
 
+# create random array with quarantine values and use standard loss function
 N0 = 7300000.0
 beta = 0.15
 gamma = 0.013
 delta = 0.01
-
-t = np.linspace(0, 66, 66)
 
 
 def dxdt_new(t, x, *args):
@@ -71,12 +87,22 @@ R0 = 13
 Q0 = 0
 x0 = S0, I0, R0, Q0
 
-train_ode(model, 100, fun=dxdt_new, t_span=(0, 66.0), y0=[S0, I0, R0, Q0], method='RK45', args=(N0, beta, gamma, delta), t_eval=t)
+weights_vector = pygad.kerasga.model_weights_as_vector(model=model)
+keras_ga = pygad.kerasga.KerasGA(model=model,
+                                 num_solutions=10)
+num_generations = 71
+num_parents_mating = 5
+initial_population = keras_ga.population_weights
 
-sol = solve_ivp(dxdt_new, (0, 66.0), [S0, I0, R0, Q0], method='RK45', args=(N0, beta, gamma, delta), t_eval=t)
-# print(sol)
-# predicted[1][:] = sol.y[1]
-# predicted[2][:] = sol.y[2]
+ga_instance = pygad.GA(num_generations=num_generations,
+                       num_parents_mating=num_parents_mating,
+                       initial_population=initial_population,
+                       fitness_func=fitness_func)
+ga_instance.run()
+ga_instance.plot_result(title="PyGAD & Keras - Iteration vs. Fitness", linewidth=4)
+
+t = np.linspace(0, 100, 100)
+sol = solve_ivp(dxdt_new, (0, 100.0), [S0, I0, R0, Q0], method='RK45', args=(N0, beta, gamma, delta), t_eval=t)
 
 plt.plot(t, sol.y[0], 'r', label='S')
 plt.plot(t, sol.y[1], 'g', label='I')
