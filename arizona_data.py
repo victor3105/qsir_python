@@ -1,4 +1,5 @@
 import numpy as np
+import csv
 
 # COVID-19 data for Arizona US
 INFECTED = np.array([652.0, 758.0, 902.0, 1137.0, 1265.0, 1501.0, 1683.0, 1896.0, 2135.0, 2422.0, 2667.0, 2797.0,
@@ -17,6 +18,15 @@ DEAD = np.array([13.0, 15.0, 17.0, 20.0, 24.0, 29.0, 32.0, 41.0, 52.0, 64.0, 65.
                  275.0, 275.0, 308.0, 320.0, 330.0, 330.0, 362.0, 362.0, 395.0, 426.0, 450.0, 517.0, 532.0, 536.0,
                  542.0, 562.0, 595.0, 624.0, 651.0, 679.0, 680.0, 687.0, 705.0, 747.0, 764.0, 775.0, 801.0, 801.0,
                  807.0, 810.0, 834.0, 860.0, 886.0, 904.0, 907.0])
+
+MOBILITY = []
+with open('az_mobility.csv') as csvfile:
+    csv_reader = csv.reader(csvfile)
+    for line in csv_reader:
+        MOBILITY.append(line)
+
+MOBILITY = MOBILITY[1][61:128]
+MOBILITY = [float(x) for x in MOBILITY]
 
 # COVID-19 spread parameters
 ALPHA = 0.15

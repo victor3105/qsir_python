@@ -496,6 +496,7 @@ def solve_ivp(fun, t_span, y0, method='RK45', t_eval=None, dense_output=False,
     >>> plt.show()
 
     """
+
     if method not in METHODS and not (
             inspect.isclass(method) and issubclass(method, OdeSolver)):
         raise ValueError("`method` must be one of {} or OdeSolver class."
@@ -633,7 +634,7 @@ def solve_ivp(fun, t_span, y0, method='RK45', t_eval=None, dense_output=False,
         if t_eval is not None and dense_output:
             ti.append(t)
 
-        # print(np.hstack(ys))
+        # print(f'len = {len(np.hstack(ys)[0])}')
 
     message = MESSAGES.get(status, message)
 
